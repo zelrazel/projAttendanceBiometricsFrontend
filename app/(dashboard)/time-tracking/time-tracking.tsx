@@ -13,6 +13,7 @@ import {
   Modal,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
+import CustomSlider from '../../../components/CustomSlider';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Calendar } from 'react-native-calendars';
 import { useToast } from '@/hooks/useToast';
@@ -85,6 +86,7 @@ export default function TimeTracking() {
   const [showMakeupDatePicker, setShowMakeupDatePicker] = useState<boolean>(false);
   const [undertimeDate, setUndertimeDate] = useState<string>('');
   const [availableDates, setAvailableDates] = useState<string[]>([]);
+  // Removed slider timeout refs as they're now handled in the CustomSlider component
   // Add biometricsEnabled state and fetch from profile
   // Remove biometricsEnabled state and all related fetch/useEffect/useFocusEffect
 
@@ -217,7 +219,7 @@ export default function TimeTracking() {
         locationSubscription = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
-            timeInterval: 5000, // 5 seconds
+            timeInterval: 1000, // 1 second
             distanceInterval: 0, // update on any movement
           },
           async (location) => {
@@ -637,7 +639,7 @@ export default function TimeTracking() {
     }
 
     // Validate makeup date format if provided
-    if (makeupDate && !/^\d{4}-\d{2}-\d{2}$/.test(makeupDate)) {
+    if (makeupDate && !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(makeupDate)) {
       showToast('Makeup date must be in YYYY-MM-DD format', 'error');
       return;
     }
@@ -651,26 +653,26 @@ export default function TimeTracking() {
     }
     
     // Find the record for the selected undertime date
-    const selectedUndertimeRecord = timeRecords.find(record => 
+    const undertimeRecord = timeRecords.find(record => 
       formatRecordDate(record.date) === undertimeDate
     );
     
-    if (!selectedUndertimeRecord) {
+    if (!undertimeRecord) {
       showToast('Could not find the selected undertime date record', 'error');
       return;
     }
     
     // Check for incomplete sessions in the selected undertime record
-    const hasIncompleteSession = (
-      (selectedUndertimeRecord.amTimeIn && !selectedUndertimeRecord.amTimeOut) || 
-      (selectedUndertimeRecord.pmTimeIn && !selectedUndertimeRecord.pmTimeOut) ||
-      (selectedUndertimeRecord.timeIn && !selectedUndertimeRecord.timeOut)
-    );
-    
-    if (hasIncompleteSession) {
-      showToast('Cannot offset with incomplete sessions. Please complete all timed-in sessions first.', 'error');
-      return;
-    }
+    // const hasIncompleteSession = (
+    //   (undertimeRecord.amTimeIn && !undertimeRecord.amTimeOut) || 
+    //   (undertimeRecord.pmTimeIn && !undertimeRecord.pmTimeOut) ||
+    //   (undertimeRecord.timeIn && !undertimeRecord.timeOut)
+    // );
+    //
+    // if (hasIncompleteSession) {
+    //   showToast('Cannot offset with incomplete sessions. Please complete all timed-in sessions first.', 'error');
+    //   return;
+    // }
 
     // Validate makeup date is present or future
     if (makeupDate) {
@@ -694,7 +696,7 @@ export default function TimeTracking() {
       }
 
       const response = await axios.post(
-        `${API_URL}/api/time-records/${selectedRecord._id}/offset`,
+        `${API_URL}/api/time-records/${undertimeRecord._id}/offset`,
         { 
           undertimeDate: undertimeDate,
           undertime: undertime,
@@ -755,7 +757,7 @@ export default function TimeTracking() {
           </View>
           <View style={styles.statusTextContainer}>
             <Text style={styles.statusText}>
-              {isWithinRange ? 'You are within office range' : 'You are outside office range'}
+              {isWithinRange ? 'You are within office range' : 'You are outside office range or maybe your network is unstable'}
             </Text>
             <Text style={styles.statusSubtext}>
               {isWithinRange ? 'Time In/Out enabled' : 'Time In/Out disabled'}
@@ -809,17 +811,8 @@ export default function TimeTracking() {
                 strokeWidth={1}
               />
 
-              {/* User Location */}
-              <Marker
-                coordinate={{
-                  latitude: currentLocation.coords.latitude,
-                  longitude: currentLocation.coords.longitude,
-                }}
-                pinColor="blue"
-                title="Your Location"
-              />
               {/* User Accuracy Circle */}
-              {currentLocation.coords.accuracy && (
+              {/* {currentLocation.coords.accuracy && (
                 <Circle
                   center={{
                     latitude: currentLocation.coords.latitude,
@@ -830,7 +823,7 @@ export default function TimeTracking() {
                   strokeColor="rgba(0, 0, 255, 0.3)"
                   strokeWidth={1}
                 />
-              )}
+              )} */}
             </MapView>
             {/* Button to navigate to office location */}
             <TouchableOpacity 
@@ -1043,26 +1036,28 @@ export default function TimeTracking() {
         </View> */}
 
         {/* Offset Button - Moved below AM/PM sessions */}
-        <View style={styles.offsetButtonContainer}>
-          <TouchableOpacity
-            style={styles.offsetMainButton}
-            onPress={() => {
-              // Get today's record if it exists
-              const todayRecord = timeRecords.find(record => {
-                const recordDate = new Date(record.date);
-                const today = new Date();
-                return recordDate.toDateString() === today.toDateString();
-              });
-              
-              if (todayRecord) {
-                handleOffsetModalOpen(todayRecord);
-              } else {
-                showToast('No time record found for today', 'warning');
-              }
-            }}
-          >
-            <Text style={styles.offsetMainButtonText}>Offset</Text>
-          </TouchableOpacity>
+        {/* Replace offsetButtonRow with sessionContainer for alignment */}
+        <View style={styles.sessionContainer}>
+          <View style={{ flex: 1, marginHorizontal: 4 }}>
+            <TouchableOpacity
+              style={[styles.sessionButton, styles.activeSessionButton]}
+              onPress={() => {
+                // Get today's record if it exists
+                const todayRecord = timeRecords.find(record => {
+                  const recordDate = new Date(record.date);
+                  const today = new Date();
+                  return recordDate.toDateString() === today.toDateString();
+                });
+                if (todayRecord) {
+                  handleOffsetModalOpen(todayRecord);
+                } else {
+                  showToast('No time record found for today', 'warning');
+                }
+              }}
+            >
+              <Text style={[styles.sessionButtonText, styles.activeSessionText]}>Offset</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Recent Time Records */}
@@ -1212,30 +1207,32 @@ export default function TimeTracking() {
                   </Modal>
                 )}
                 
-                <Text style={styles.modalLabel}>Undertime (hours): {undertime.toFixed(2)}</Text>
-                <Slider
-                  style={styles.slider}
+                <CustomSlider
+                  label="Undertime (hours)"
+                  value={undertime}
+                  onValueChange={setUndertime}
                   minimumValue={0}
                   maximumValue={8}
                   step={0.25}
-                  value={undertime}
-                  onValueChange={setUndertime}
                   minimumTrackTintColor="#007bff"
                   maximumTrackTintColor="#d3d3d3"
                   thumbTintColor="#007bff"
+                  disabled={false}
+                  testID="undertime-slider"
                 />
                 
-                <Text style={styles.modalLabel}>Makeup (hours): {makeup.toFixed(2)}</Text>
-                <Slider
-                  style={styles.slider}
+                <CustomSlider
+                  label="Makeup (hours)"
+                  value={makeup}
+                  onValueChange={setMakeup}
                   minimumValue={0}
                   maximumValue={8}
                   step={0.25}
-                  value={makeup}
-                  onValueChange={setMakeup}
                   minimumTrackTintColor="#28a745"
                   maximumTrackTintColor="#d3d3d3"
                   thumbTintColor="#28a745"
+                  disabled={false}
+                  testID="makeup-slider"
                 />
                 
                 <Text style={styles.modalLabel}>Makeup Date:</Text>
@@ -1354,11 +1351,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
   },
-  slider: {
-    width: '100%',
-    height: 40,
-    marginBottom: 10,
-  },
+  // Slider styles moved to CustomSlider component
   datePickerButton: {
     backgroundColor: '#f0f0f0',
     padding: 12,
@@ -1808,5 +1801,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  offsetButtonRow: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 16,
   },
 });

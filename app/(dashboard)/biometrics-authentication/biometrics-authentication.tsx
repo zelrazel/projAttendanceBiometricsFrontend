@@ -88,6 +88,16 @@ export default function BiometricsAuthScreen() {
             {!appLocationPermission && (
               <Text style={styles.warningLabel}>Please allow location permission for this app. For best results, choose "Allow all the time".</Text>
             )}
+            {/* Important Location Accuracy Warning */}
+            <View style={styles.importantBox}>
+              <Text style={styles.importantTitle}>Important:</Text>
+              <Text style={styles.importantText}>
+                Your location may still be inaccurate due to various factors such as bad weather, being indoors, tall buildings, or signal interference.
+              </Text>
+              <Text style={styles.importantText}>
+                Turning on both <Text style={{ fontWeight: 'bold' }}>WiFi</Text> and <Text style={{ fontWeight: 'bold' }}>Mobile Data</Text> can help improve the accuracy of your location tracking.
+              </Text>
+            </View>
             {needsSettings && (
               <View style={styles.buttonContainer}>
                 <TouchableOpacity style={styles.settingsButton} onPress={openLocationSettings}>
@@ -217,5 +227,25 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  importantBox: {
+    backgroundColor: '#fff3cd',
+    borderLeftWidth: 5,
+    borderLeftColor: '#ff9800',
+    padding: 12,
+    marginTop: 16,
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  importantTitle: {
+    color: '#b26a00',
+    fontWeight: 'bold',
+    fontSize: 15,
+    marginBottom: 4,
+  },
+  importantText: {
+    color: '#7c5a00',
+    fontSize: 14,
+    marginBottom: 2,
   },
 });

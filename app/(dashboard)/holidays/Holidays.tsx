@@ -49,9 +49,13 @@ export default function Holidays() {
   const [endDate, setEndDate] = useState(new Date());
   const [endDateObj, setEndDateObj] = useState(new Date());
   const [showHolidayList, setShowHolidayList] = useState(false);
+  const [showAllEventsModal, setShowAllEventsModal] = useState(false);
+  const [allEvents, setAllEvents] = useState<EventItem[]>([]);
+  const [allEventsForCalendar, setAllEventsForCalendar] = useState<EventItem[]>([]);
 
   useEffect(() => {
     fetchHolidays();
+    fetchAllEventsForCalendar();
   }, []);
 
   useEffect(() => {
@@ -60,7 +64,7 @@ export default function Holidays() {
 
   useEffect(() => {
     markCalendar();
-  }, [holidays, events]);
+  }, [holidays, allEventsForCalendar, selectedDate]);
 
   const fetchHolidays = async () => {
     setLoading(true);
@@ -89,7 +93,40 @@ export default function Holidays() {
     }
   };
 
+  const fetchAllEvents = async () => {
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const res = await axios.get(`${API_URL}/api/events`, { headers: { Authorization: token } });
+      setAllEvents(res.data);
+    } catch (e) {
+      setAllEvents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch all events for calendar marking
+  const fetchAllEventsForCalendar = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const res = await axios.get(`${API_URL}/api/events`, { headers: { Authorization: token } });
+      setAllEventsForCalendar(res.data);
+    } catch (e) {
+      setAllEventsForCalendar([]);
+    }
+  };
+
   const addEvent = async () => {
+    // Prevent adding events on past dates
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selected = new Date(selectedDate);
+    selected.setHours(0, 0, 0, 0);
+    if (selected < today) {
+      Alert.alert('Error', 'Cannot add an event on a past date');
+      return;
+    }
     if (!newEvent.title || !newEvent.startTime || !newEvent.endTime || !newEvent.endDate || !newEvent.location) {
       Alert.alert('Error', 'Please fill in all required fields (title, dates, times, and location)');
       return;
@@ -138,6 +175,7 @@ export default function Holidays() {
       setShowAddModal(false);
       setNewEvent({ title: '', startTime: '', endTime: '', location: '', endDate: '', description: '' });
       fetchEvents(selectedDate);
+      fetchAllEventsForCalendar(); // <-- add this
     } catch (e) {
       Alert.alert('Error', 'Failed to add event');
     } finally {
@@ -166,22 +204,22 @@ export default function Holidays() {
     }
   };
   
-  const onStartTimeChange = (event: any, selectedDate?: Date) => {
+  const onStartTimeChange = (event: any, selectedDateObj?: Date) => {
     setShowStartTimePicker(false);
-    if (selectedDate) {
-      // Check if selected time is in the past for today's date
+    if (selectedDateObj) {
+      // Combine selected calendar date and picked time
+      const [year, month, day] = selectedDate.split('-').map(Number);
+      const combinedDate = new Date(year, month - 1, day, selectedDateObj.getHours(), selectedDateObj.getMinutes(), 0, 0);
       const now = new Date();
-      const today = new Date().toDateString();
-      const selectedDay = new Date(selectedDate).toDateString();
-      
-      if (selectedDay === today && selectedDate < now) {
+      const todayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+      // Only block past times if the selected date is today
+      if (selectedDate === todayStr && combinedDate < now) {
         Alert.alert('Error', 'Cannot select a past time');
         return;
       }
-      
-      setStartDate(selectedDate);
-      const hours = selectedDate.getHours();
-      const minutes = selectedDate.getMinutes();
+      setStartDate(combinedDate);
+      const hours = selectedDateObj.getHours();
+      const minutes = selectedDateObj.getMinutes();
       const ampm = hours >= 12 ? 'PM' : 'AM';
       const formattedHours = hours % 12 || 12;
       const formattedTime = `${formattedHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
@@ -189,22 +227,22 @@ export default function Holidays() {
     }
   };
 
-  const onEndTimeChange = (event: any, selectedDate?: Date) => {
+  const onEndTimeChange = (event: any, selectedDateObj?: Date) => {
     setShowEndTimePicker(false);
-    if (selectedDate) {
-      // Check if selected time is in the past for today's date
+    if (selectedDateObj) {
+      // Combine selected calendar date and picked time
+      const [year, month, day] = selectedDate.split('-').map(Number);
+      const combinedDate = new Date(year, month - 1, day, selectedDateObj.getHours(), selectedDateObj.getMinutes(), 0, 0);
       const now = new Date();
-      const today = new Date().toDateString();
-      const selectedDay = new Date(selectedDate).toDateString();
-      
-      if (selectedDay === today && selectedDate < now) {
+      const todayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+      // Only block past times if the selected date is today
+      if (selectedDate === todayStr && combinedDate < now) {
         Alert.alert('Error', 'Cannot select a past time');
         return;
       }
-      
-      setEndDate(selectedDate);
-      const hours = selectedDate.getHours();
-      const minutes = selectedDate.getMinutes();
+      setEndDate(combinedDate);
+      const hours = selectedDateObj.getHours();
+      const minutes = selectedDateObj.getMinutes();
       const ampm = hours >= 12 ? 'PM' : 'AM';
       const formattedHours = hours % 12 || 12;
       const formattedTime = `${formattedHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
@@ -218,6 +256,7 @@ export default function Holidays() {
       const token = await AsyncStorage.getItem('userToken');
       await axios.delete(`${API_URL}/api/events/${id}`, { headers: { Authorization: token } });
       fetchEvents(selectedDate);
+      fetchAllEventsForCalendar(); // <-- add this
     } catch (e) {
       Alert.alert('Error', 'Failed to delete event');
     } finally {
@@ -230,7 +269,8 @@ export default function Holidays() {
     holidays.forEach((h: Holiday) => {
       marks[h.date] = { marked: true, dotColor: 'green', customStyles: { container: { backgroundColor: '#f0f0f5' } } };
     });
-    events.forEach((ev: EventItem) => {
+    // Mark all event dates
+    allEventsForCalendar.forEach((ev: EventItem) => {
       const d = ev.date ? ev.date.slice(0, 10) : '';
       if (d) {
         marks[d] = marks[d] ? { ...marks[d], dotColor: 'green' } : { marked: true, dotColor: 'green' };
@@ -286,6 +326,9 @@ export default function Holidays() {
           />
           <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddModal(true)}>
             <Text style={styles.addBtnText}>+ Add Event</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.addBtn} onPress={() => { fetchAllEvents(); setShowAllEventsModal(true); }}>
+            <Text style={styles.addBtnText}>See All Events Added</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -462,6 +505,39 @@ export default function Holidays() {
               
               <Text style={styles.requiredFieldsNote}>* Required fields</Text>
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* All Events Modal */}
+      <Modal visible={showAllEventsModal} transparent animationType="slide" onRequestClose={() => setShowAllEventsModal(false)}>
+        <View style={styles.modalBg}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>All Events</Text>
+              <TouchableOpacity onPress={() => setShowAllEventsModal(false)} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#888" />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={allEvents}
+              keyExtractor={(item: EventItem) => item._id}
+              renderItem={({ item }: { item: EventItem }) => (
+                <View style={styles.eventItem}>
+                  <Text style={styles.eventTitle}>{item.title}</Text>
+                  <Text style={styles.eventTime}>
+                    <Ionicons name="time-outline" size={14} color="#424242" /> {item.startTime} - {item.endTime}
+                  </Text>
+                  <Text style={styles.eventDate}>
+                    <Ionicons name="calendar-outline" size={14} color="#424242" /> {new Date(item.date).toLocaleDateString()}
+                    {item.endDate && ` - ${new Date(item.endDate).toLocaleDateString()}`}
+                  </Text>
+                  {item.location && <Text style={styles.eventLocation}><Ionicons name="location-outline" size={14} color="#424242" /> {item.location}</Text>}
+                  {item.description && <Text style={styles.eventDescription}><Ionicons name="document-text-outline" size={14} color="#424242" /> {item.description}</Text>}
+                </View>
+              )}
+              ListEmptyComponent={<Text style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>No events</Text>}
+            />
           </View>
         </View>
       </Modal>

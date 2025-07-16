@@ -77,7 +77,7 @@ export const exportToCSV = async (timeRecords: TimeRecord[], userInfo?: UserInfo
     // Add empty rows for spacing
     const emptyRow = [''];
     
-    const headers = ['Date', 'AM In', 'AM Out', 'PM In', 'PM Out', 'Hours', 'Undertime', 'Makeup'];
+    const headers = ['Date', 'AM In', 'AM Out', 'PM In', 'PM Out', 'Hours', 'Undertime', 'Makeup', 'Makeup Date'];
     const rows = timeRecords.map(record => [
       formatRecordDate(record.date),
       record.amTimeIn ? formatRecordTime(record.amTimeIn) : '',
@@ -86,7 +86,8 @@ export const exportToCSV = async (timeRecords: TimeRecord[], userInfo?: UserInfo
       record.pmTimeOut ? formatRecordTime(record.pmTimeOut) : '',
       record.totalHours.toFixed(2),
       record.undertime ? record.undertime.toFixed(2) : '0.00',
-      record.makeup ? record.makeup.toFixed(2) : '0.00' + (record.makeupDate ? ` (${formatRecordDate(record.makeupDate)})` : '')
+      record.makeup ? record.makeup.toFixed(2) : '0.00',
+      record.makeupDate ? formatRecordDate(record.makeupDate) : '',
     ]);
     
     // Combine all rows with title, user info, date range at the top
@@ -132,12 +133,12 @@ export const exportToPDF = async (timeRecords: TimeRecord[], userInfo?: UserInfo
     const pdfDoc = await PDFDocument.create();
     const pageWidth = 700;
     const rowHeight = 32;
-    const colWidths = [90, 70, 70, 70, 70, 60, 80, 100];
-    const headers = ['Date', 'AM In', 'AM Out', 'PM In', 'PM Out', 'Hours', 'Undertime', 'Makeup'];
+    const colWidths = [78, 60, 60, 60, 60, 52, 68, 85, 85]; // slightly smaller columns
+    const headers = ['Date', 'AM In', 'AM Out', 'PM In', 'PM Out', 'Hours', 'Undertime', 'Makeup', 'Makeup Date'];
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    const fontSize = 12;
-    const titleFontSize = 16;
+    const fontSize = 10; // slightly smaller font
+    const titleFontSize = 14; // slightly smaller title
     const margin = 24;
     const tableTop = 120; // Increased to make room for title, user name, and date range
     const numRows = timeRecords.length + 1;
@@ -207,7 +208,8 @@ export const exportToPDF = async (timeRecords: TimeRecord[], userInfo?: UserInfo
         record.pmTimeOut ? formatRecordTime(record.pmTimeOut) : '',
         record.totalHours.toFixed(2),
         record.undertime ? record.undertime.toFixed(2) : '0.00',
-        record.makeup ? record.makeup.toFixed(2) : '0.00' + (record.makeupDate ? ` (${formatRecordDate(record.makeupDate)})` : '')
+        record.makeup ? record.makeup.toFixed(2) : '0.00',
+        record.makeupDate ? formatRecordDate(record.makeupDate) : '',
       ];
       row.forEach((cell, i) => {
         const cellWidth = colWidths[i];

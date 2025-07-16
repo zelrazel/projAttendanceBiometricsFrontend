@@ -5,6 +5,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
 import { useAuth } from '../../../hooks/useAuth';
+import { API_URL } from '@/constants/apiUrl';
 
 // Define user interface
 interface User {
@@ -19,9 +20,6 @@ interface User {
   createdAt: string;
   updatedAt: string;
 }
-
-// Use your actual local IP address
-const API_BASE_URL = 'http://192.168.100.6:5000';
 
 export default function Profile() {
   const { token } = useAuth();
@@ -59,7 +57,7 @@ export default function Profile() {
 
   const fetchUserProfile = async () => {
     try {
-      const response = await axios.get<User>(`${API_BASE_URL}/api/profile`, {
+      const response = await axios.get<User>(`${API_URL}/api/profile`, {
         headers: { Authorization: token }
       });
       setUser(response.data);
@@ -104,7 +102,7 @@ export default function Profile() {
     setUploading(true);
     try {
       const response = await axios.delete<User>(
-        `${API_BASE_URL}/api/profile/image`,
+        `${API_URL}/api/profile/image`,
         {
           headers: {
             Authorization: token,
@@ -134,7 +132,7 @@ export default function Profile() {
       } as any);
 
       const response = await axios.post<User>(
-        `${API_BASE_URL}/api/profile/image`,
+        `${API_URL}/api/profile/image`,
         formData,
         {
           headers: {
@@ -160,11 +158,16 @@ export default function Profile() {
       showToast('Please fill all required fields', 'error');
       return;
     }
+    // Phone number length validation
+    if (formData.phoneNumber.length !== 11) {
+      showToast('Phone number must be 11 digits', 'error');
+      return;
+    }
 
     setUpdating(true);
     try {
       const response = await axios.put<User>(
-        `${API_BASE_URL}/api/profile`,
+        `${API_URL}/api/profile`,
         formData,
         {
           headers: {
@@ -456,6 +459,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1.3, // border
+    borderColor: '#444', // light black color
   },
   profileImage: {
     width: '100%',

@@ -1,7 +1,7 @@
 import React from 'react';
-import { createDrawerNavigator } from '@react-navigation/drawer';
+import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { TouchableOpacity } from 'react-native';
+import { TouchableOpacity, View, Text, Image, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import CustomHeader from '@/components/CustomHeader';
@@ -16,6 +16,51 @@ import Download from './download/Download';
 
 const Drawer = createDrawerNavigator();
 
+function DrawerContent(props: any) {
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={drawerContentStyles.headerContainer}>
+        <Image
+          source={require('../../logo/dict-logo-slider.png')}
+          style={drawerContentStyles.logo}
+          resizeMode="contain"
+        />
+        <Text style={drawerContentStyles.title}>Biometrics Attendance System</Text>
+      </View>
+      <DrawerContentScrollView {...props} contentContainerStyle={{paddingTop: 12}}>
+        <DrawerItemList {...props} />
+      </DrawerContentScrollView>
+    </View>
+  );
+}
+
+const drawerContentStyles = StyleSheet.create({
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16, 
+    paddingHorizontal: 16,
+    paddingBottom: 2, // less space below header
+    backgroundColor: '#f5f7fa',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    justifyContent: 'flex-start', 
+    marginTop: 0, 
+    paddingTop: 32, 
+  },
+  logo: {
+    width: 50, //  logo size
+    height: 50, //  logo size
+    marginRight: 8, // less space between logo and text
+  },
+  title: {
+    fontSize: 15, // smaller text
+    fontWeight: 'bold',
+    color: '#003366',
+    flexShrink: 1,
+  },
+});
+
 export default function DashboardLayout() {
   const router = useRouter();
   const { signOut } = useAuth();
@@ -28,6 +73,7 @@ export default function DashboardLayout() {
 
   return (
     <Drawer.Navigator
+      drawerContent={(props) => <DrawerContent {...props} />}
       screenOptions={({ navigation }) => ({
         header: () => <CustomHeader />,
         headerStyle: {
@@ -41,6 +87,16 @@ export default function DashboardLayout() {
         },
       })}
     >
+      <Drawer.Screen 
+        name="biometrics-authentication" 
+        component={BiometricsAuthentication} 
+        options={{ 
+          drawerLabel: 'Authentication & Location',
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="shield-checkmark-outline" size={size} color={color} />
+          ),
+        }} 
+      />
       <Drawer.Screen 
         name="time-tracking" 
         component={TimeTracking} 
@@ -68,16 +124,6 @@ export default function DashboardLayout() {
           drawerLabel: 'Profile',
           drawerIcon: ({ color, size }) => (
             <Ionicons name="person-outline" size={size} color={color} />
-          ),
-        }} 
-      />
-      <Drawer.Screen 
-        name="biometrics-authentication" 
-        component={BiometricsAuthentication} 
-        options={{ 
-          drawerLabel: 'Authentication & Location',
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="shield-checkmark-outline" size={size} color={color} />
           ),
         }} 
       />

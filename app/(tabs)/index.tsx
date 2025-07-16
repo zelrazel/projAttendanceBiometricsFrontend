@@ -5,9 +5,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { MaterialIcons } from '@expo/vector-icons';
-
-// Replace with your actual local IP address
-const API_BASE_URL = 'http://192.168.100.6:5000';
+import { API_URL } from '@/constants/apiUrl';
 
 export default function SignIn() {
   const [email, setEmail] = useState('');
@@ -34,7 +32,7 @@ export default function SignIn() {
       return;
     }
     try {
-      const res = await axios.post(`${API_BASE_URL}/api/auth/login`, { email, password });
+      const res = await axios.post(`${API_URL}/api/auth/login`, { email, password });
       // Save token using auth context
       await signIn(res.data.token);
       showToast('Logged in successfully!', 'success');

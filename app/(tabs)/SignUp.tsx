@@ -4,9 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import axios from 'axios';
 import { useRouter } from 'expo-router';
 import { useToast } from '@/hooks/useToast';
-
-// Use your actual local IP address
-const API_BASE_URL = 'http://192.168.100.6:5000';
+import { API_URL } from '@/constants/apiUrl';
 
 export default function SignUp() {
   const [form, setForm] = useState({
@@ -23,7 +21,13 @@ export default function SignUp() {
   const { showToast } = useToast();
 
   const handleChange = (key: string, value: string) => {
-    setForm({ ...form, [key]: value });
+    if (key === 'phoneNumber') {
+      // Only allow digits, max 11
+      const digitsOnly = value.replace(/[^0-9]/g, '').slice(0, 11);
+      setForm({ ...form, [key]: digitsOnly });
+    } else {
+      setForm({ ...form, [key]: value });
+    }
   };
 
   const handleSignUp = async () => {
@@ -41,6 +45,12 @@ export default function SignUp() {
       setLoading(false);
       return;
     }
+    // Phone number length validation
+    if (form.phoneNumber.length !== 11) {
+      showToast('Phone number must be 11 digits.', 'error');
+      setLoading(false);
+      return;
+    }
     // Check for required fields before sending request
     if (!form.email || !form.firstName || !form.lastName || !form.designation || !form.phoneNumber || !form.password) {
       showToast('Please fill all required fields.', 'error');
@@ -48,7 +58,7 @@ export default function SignUp() {
       return;
     }
     try {
-      await axios.post(`${API_BASE_URL}/api/auth/signup`, form);
+      await axios.post(`${API_URL}/api/auth/signup`, form);
       showToast('Account created! Please sign in.', 'success');
       router.replace('./');
     } catch (err: any) {
@@ -203,7 +213,7 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     backgroundColor: '#f5f7fa',
-    paddingVertical: 20,
+    paddingVertical: 60, // increased top and bottom padding
     paddingHorizontal: 16,
   },
   logo: {

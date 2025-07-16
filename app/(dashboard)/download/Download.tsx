@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,6 +12,7 @@ import { exportToCSV, exportToPDF } from '@/utils/exportUtils';
 interface User {
   _id: string;
   firstName: string;
+  middleName?: string;
   lastName: string;
 }
 
@@ -68,6 +69,7 @@ export default function Download() {
       const currentUser = {
         _id: response.data._id,
         firstName: response.data.firstName,
+        middleName: response.data.middleName,
         lastName: response.data.lastName
       };
       
@@ -156,6 +158,7 @@ export default function Download() {
     try {
       const userInfo = {
         firstName: selectedUser.firstName,
+        middleName: selectedUser.middleName,
         lastName: selectedUser.lastName
       };
       
@@ -186,6 +189,7 @@ export default function Download() {
     try {
       const userInfo = {
         firstName: selectedUser.firstName,
+        middleName: selectedUser.middleName,
         lastName: selectedUser.lastName
       };
       
@@ -213,7 +217,7 @@ export default function Download() {
       <View style={styles.dropdownContainer}>
         <View style={styles.dropdownButton}>
           <Text style={styles.dropdownButtonText}>
-            {selectedUser ? `${selectedUser.firstName} ${selectedUser.lastName}` : 'Loading...'}
+            {selectedUser ? `${selectedUser.firstName}${selectedUser.middleName ? ' ' + selectedUser.middleName : ''} ${selectedUser.lastName}` : 'Loading...'}
           </Text>
         </View>
       </View>
@@ -281,7 +285,7 @@ export default function Download() {
             onPress={handleExportCSV}
             disabled={loading || timeRecords.length === 0}
           > 
-            <Ionicons name="document-text-outline" size={17} color="#333" style={{ marginRight: 5 }} />
+            <MaterialIcons name="grid-on" size={24} color="#333" style={{ marginRight: 5 }} />
             <Text style={[styles.exportButtonText, { fontSize: 13 }]}>Export CSV</Text>
           </TouchableOpacity>
           <TouchableOpacity 
@@ -289,7 +293,7 @@ export default function Download() {
             onPress={handleExportPDF}
             disabled={loading || timeRecords.length === 0}
           > 
-            <Ionicons name="document-outline" size={17} color="#333" style={{ marginRight: 5 }} />
+            <MaterialIcons name="picture-as-pdf" size={24} color="#333" style={{ marginRight: 5 }} />
             <Text style={[styles.exportButtonText, { fontSize: 13 }]}>Export PDF</Text>
           </TouchableOpacity>
           <TouchableOpacity

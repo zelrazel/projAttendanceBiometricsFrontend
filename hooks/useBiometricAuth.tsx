@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '@/constants/apiUrl';
 
 interface BiometricStatus {
   available: boolean;
@@ -37,7 +38,7 @@ export function useBiometricAuth() {
       let enabled = false;
       if (token) {
         try {
-          const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'}/api/biometrics`, {
+          const response = await fetch(`${API_URL}/api/biometrics`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           
