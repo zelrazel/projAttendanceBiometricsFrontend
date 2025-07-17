@@ -8,6 +8,7 @@ import { API_URL } from '@/constants/apiUrl';
 import { useAuth } from '@/hooks/useAuth';
 import * as Sharing from 'expo-sharing';
 import { exportToCSV, exportToPDF } from '@/utils/exportUtils';
+import ExportModal from './ExportModal';
 
 interface User {
   _id: string;
@@ -170,7 +171,7 @@ export default function Download() {
       
       const result = await exportToCSV(timeRecords, userInfo, dateRange);
       if (result.success) {
-        await Sharing.shareAsync(result.filePath);
+        setExportModal({visible: true, filePath: result.filePath, fileType: 'csv'});
       } else {
         Alert.alert('Export Failed', 'Failed to export CSV: ' + result.error);
       }
@@ -201,7 +202,7 @@ export default function Download() {
       
       const result = await exportToPDF(timeRecords, userInfo, dateRange);
       if (result.success) {
-        await Sharing.shareAsync(result.filePath);
+        setExportModal({visible: true, filePath: result.filePath, fileType: 'pdf'});
       } else {
         Alert.alert('Export Failed', 'Failed to export PDF: ' + result.error);
       }
@@ -264,6 +265,19 @@ export default function Download() {
     );
   };
 
+  // Handle opening the exported file
+  const handleOpenFile = async () => {
+    if (exportModal.filePath) {
+      try {
+        await Sharing.shareAsync(exportModal.filePath);
+      } catch (error) {
+        Alert.alert('Error', 'Failed to open the file: ' + error);
+      }
+    }
+    // Close the modal after opening the file
+    setExportModal({visible: false, filePath: '', fileType: null});
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.selectionContainer}>
@@ -320,6 +334,7 @@ export default function Download() {
                 <Text style={[styles.tableHeaderCell, styles.hoursCell]}>Hours</Text>
                 <Text style={[styles.tableHeaderCell, styles.undertimeCell]}>Undertime</Text>
                 <Text style={[styles.tableHeaderCell, styles.makeupCell]}>Makeup</Text>
+                <Text style={[styles.tableHeaderCell, styles.makeupDateCell]}>Makeup Date</Text>
               </View>
               <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }}>
                 {timeRecords.length > 0 ? (
@@ -348,7 +363,9 @@ export default function Download() {
                       </Text>
                       <Text style={[styles.tableCell, styles.makeupCell]}>
                         {record.makeup ? record.makeup.toFixed(2) : '0.00'}
-                        {record.makeupDate ? `\n(${formatRecordDate(record.makeupDate)})` : ''}
+                      </Text>
+                      <Text style={[styles.tableCell, styles.makeupDateCell]}>
+                        {record.makeupDate ? formatRecordDate(record.makeupDate) : '--'}
                       </Text>
                     </View>
                   ))
@@ -363,6 +380,14 @@ export default function Download() {
         </View>
         </>
       )}
+      
+      <ExportModal
+        visible={exportModal.visible}
+        filePath={exportModal.filePath}
+        fileType={exportModal.fileType}
+        onClose={() => setExportModal({visible: false, filePath: '', fileType: null})}
+        onOpenFile={handleOpenFile}
+      />
     </View>
   );
 }
@@ -517,6 +542,9 @@ const styles = StyleSheet.create({
     width: 80,
   },
   makeupCell: {
+    width: 80,
+  },
+  makeupDateCell: {
     width: 100,
   },
   emptyState: {

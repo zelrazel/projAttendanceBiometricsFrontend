@@ -17,6 +17,15 @@ import Download from './download/Download';
 const Drawer = createDrawerNavigator();
 
 function DrawerContent(props: any) {
+  const router = useRouter();
+  const { signOut } = useAuth();
+
+  const handleLogout = async () => {
+    // Clear token from storage using auth context
+    await signOut();
+    // Navigation will be handled by the auth context
+  };
+
   return (
     <View style={{ flex: 1 }}>
       <View style={drawerContentStyles.headerContainer}>
@@ -30,6 +39,15 @@ function DrawerContent(props: any) {
       <DrawerContentScrollView {...props} contentContainerStyle={{paddingTop: 12}}>
         <DrawerItemList {...props} />
       </DrawerContentScrollView>
+      <View style={drawerContentStyles.logoutButtonContainer}>
+        <TouchableOpacity 
+          style={drawerContentStyles.logoutButton} 
+          onPress={handleLogout}
+        >
+          <Ionicons name="log-out-outline" size={20} color="#fff" style={{marginRight: 8}} />
+          <Text style={drawerContentStyles.logoutButtonText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -59,18 +77,31 @@ const drawerContentStyles = StyleSheet.create({
     color: '#003366',
     flexShrink: 1,
   },
+  logoutButtonContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 40,
+    paddingTop: 10,
+    alignItems: 'center',
+    marginTop: 'auto',
+  },
+  logoutButton: {
+    backgroundColor: '#3f51b5',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '80%',
+  },
+  logoutButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
 
 export default function DashboardLayout() {
-  const router = useRouter();
-  const { signOut } = useAuth();
-
-  const handleLogout = async () => {
-    // Clear token from storage using auth context
-    await signOut();
-    // Navigation will be handled by the auth context
-  };
-
   return (
     <Drawer.Navigator
       drawerContent={(props) => <DrawerContent {...props} />}
@@ -147,23 +178,7 @@ export default function DashboardLayout() {
           ),
         }} 
       />
-      <Drawer.Screen 
-        name="logout" 
-        component={Dashboard} // This doesn't matter as we'll handle the press
-        options={{ 
-          drawerLabel: 'Logout',
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="log-out-outline" size={size} color={color} />
-          ),
-        }}
-        listeners={{
-          drawerItemPress: (e) => {
-            // Prevent default action
-            e.preventDefault();
-            handleLogout();
-          },
-        }}
-      />
+
     </Drawer.Navigator>
   );
 }

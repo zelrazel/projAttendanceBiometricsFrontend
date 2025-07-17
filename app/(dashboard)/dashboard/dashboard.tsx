@@ -104,17 +104,17 @@ const ExportModal: FC<ExportModalProps> = ({
       justifyContent: 'center', alignItems: 'center', zIndex: 1000
     }}>
       <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 24, width: 320, alignItems: 'center' }}>
-        <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 8 }}>DTR {fileType === 'csv' ? 'CSV' : 'PDF'} Exported Successfully</Text>
-        <Text style={{ marginBottom: 8, textAlign: 'center' }}>The file has been saved to:
-          {"\n"}<Text style={{ fontFamily: 'monospace', fontSize: 13 }}>{filePath}</Text>
+        <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 8 }}>DTR {fileType === 'csv' ? 'CSV' : 'PDF'} File is being exported</Text>
+        <Text style={{ marginBottom: 8, textAlign: 'center' }}>The file is being saved to your download folder
+          {"\n"}<Text style={{ fontFamily: 'monospace', fontSize: 13 }}>File name: {filePath.split('/').pop()}</Text>
         </Text>
-        <Text style={{ color: '#666', marginBottom: 16 }}>You can find it in your Downloads folder</Text>
+        <Text style={{ color: '#666', marginBottom: 16 }}>Save file?</Text>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
           <TouchableOpacity onPress={onClose} style={{ flex: 1, alignItems: 'center', padding: 12 }}>
             <Text style={{ color: '#3f51b5', fontWeight: 'bold' }}>Close</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={onOpenFile} style={{ flex: 1, alignItems: 'center', padding: 12 }}>
-            <Text style={{ color: '#3f51b5', fontWeight: 'bold' }}>Open File</Text>
+          <TouchableOpacity onPress={onOpenFile} style={{ flex: 1, alignItems: 'center', padding: 12, backgroundColor: '#3f51b5', borderRadius: 8 }}>
+            <Text style={{ color: 'white', fontWeight: 'bold' }}>Save File</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -139,6 +139,7 @@ const TimeRecordsTable: FC<TimeRecordsTableProps> = ({
         <Text style={[styles.tableHeaderCell, styles.hoursCell]}>Hours</Text>
         <Text style={[styles.tableHeaderCell, styles.undertimeCell]}>Undertime</Text>
         <Text style={[styles.tableHeaderCell, styles.makeupCell]}>Makeup</Text>
+        <Text style={[styles.tableHeaderCell, styles.makeupDateCell]}>Makeup Date</Text>
       </View>
       {loading ? (
         <ActivityIndicator size="large" color="#0000ff" style={styles.loadingIndicator} />
@@ -152,7 +153,8 @@ const TimeRecordsTable: FC<TimeRecordsTableProps> = ({
             <Text style={[styles.tableCell, styles.timeCell]}>{record.pmTimeOut ? formatRecordTime(record.pmTimeOut) : '--:--'}</Text>
             <Text style={[styles.tableCell, styles.hoursCell]}>{record.totalHours.toFixed(2)}</Text>
             <Text style={[styles.tableCell, styles.undertimeCell]}>{record.undertime ? record.undertime.toFixed(2) : '0.00'}</Text>
-            <Text style={[styles.tableCell, styles.makeupCell]}>{record.makeup ? record.makeup.toFixed(2) : '0.00'}{record.makeupDate ? `\n(${formatRecordDate(record.makeupDate)})` : ''}</Text>
+            <Text style={[styles.tableCell, styles.makeupCell]}>{record.makeup ? record.makeup.toFixed(2) : '0.00'}</Text>
+            <Text style={[styles.tableCell, styles.makeupDateCell]}>{record.makeupDate ? formatRecordDate(record.makeupDate) : '--'}</Text>
           </View>
         ))
       ) : (
@@ -383,6 +385,9 @@ const styles = StyleSheet.create({
     width: 80,
   },
   makeupCell: {
+    width: 80,
+  },
+  makeupDateCell: {
     width: 100,
   },
   amSessionText: {

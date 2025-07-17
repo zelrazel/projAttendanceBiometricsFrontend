@@ -11,6 +11,7 @@ import {
   TouchableWithoutFeedback,
   TextInput,
   Modal,
+  Linking,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import CustomSlider from '../../../components/CustomSlider';
@@ -20,8 +21,8 @@ import { useToast } from '@/hooks/useToast';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
-// Import MapView and related components
-import MapView, { Marker, Circle } from 'react-native-maps';
+// Import OpenStreetMap components
+import { WebView } from 'react-native-webview';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '@/constants/apiUrl';
@@ -62,7 +63,7 @@ interface OfficeLocation {
 export default function TimeTracking() {
   const router = useRouter();
   const { showToast } = useToast();
-  const mapRef = useRef<MapView>(null);
+  const webViewRef = useRef<WebView>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [locationPermission, setLocationPermission] = useState(false);
@@ -202,6 +203,26 @@ export default function TimeTracking() {
     }
   };
   
+  // Function to update user location in the WebView map
+  const updateMapUserLocation = (latitude: number, longitude: number) => {
+    if (webViewRef.current) {
+      const updateScript = `
+        try {
+          // Update stored user location
+          userLocation = [${latitude}, ${longitude}];
+          
+          // Update user marker position
+          if (typeof userMarker !== 'undefined') {
+            userMarker.setLatLng([${latitude}, ${longitude}]);
+          }
+        } catch (e) {
+          console.error('Error updating location:', e);
+        }
+      `;
+      webViewRef.current.injectJavaScript(updateScript);
+    }
+  };
+
   // Set up location tracking
   useEffect(() => {
     let locationSubscription: Location.LocationSubscription | null = null;
@@ -219,13 +240,16 @@ export default function TimeTracking() {
         locationSubscription = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
-            timeInterval: 1000, // 1 second
+            timeInterval: 2000, // 5 seconds
             distanceInterval: 0, // update on any movement
           },
           async (location) => {
             // Only update if accuracy is good
             if (location.coords.accuracy && location.coords.accuracy < 30) {
               setCurrentLocation(location);
+              // Update the user's location on the map
+              updateMapUserLocation(location.coords.latitude, location.coords.longitude);
+              
               if (officeLocation) {
                 await checkOfficeRange(location);
               } else {
@@ -322,9 +346,9 @@ export default function TimeTracking() {
         name: 'Default Office',
         location: {
           type: 'Point',
-          coordinates: [120.59097690306716, 18.20585558594641] // Updated coordinates as requested
+          coordinates: [120.59097690306716, 18.20585558594641] 
         },
-        radius: 100, // 100 meters radius
+        radius: 30, // 30 meters radius
         address: 'Default Office Address',
         isActive: true
       };
@@ -768,80 +792,285 @@ export default function TimeTracking() {
         
         {/* Outside office range warning - removed as requested */}
 
-        {/* Map View */}
+        {/* Map View - OpenStreetMap */}
         <View style={styles.mapContainer}>
           {currentLocation && officeLocation ? (
             <View style={{flex: 1, position: 'relative'}}>
-              <MapView
-                ref={mapRef}
+              <WebView
                 style={styles.map}
-                initialRegion={{
-                  latitude: currentLocation.coords.latitude,
-                  longitude: currentLocation.coords.longitude,
-                  latitudeDelta: 0.005,
-                  longitudeDelta: 0.005,
+                ref={webViewRef}
+                source={{
+                  html: `
+                    <!DOCTYPE html>
+                    <html>
+                      <head>
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+                        <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+                        <style>
+                          body { margin: 0; padding: 0; }
+                          #map { 
+                            width: 100%; 
+                            height: 100vh; 
+                            transition: transform 0.3s ease; /* Smooth transition for any transforms */
+                          }
+                          .map-button {
+                            padding: 8px;
+                            background-color: white;
+                            border: 1px solid #ccc;
+                            border-radius: 50%;
+                            cursor: pointer;
+                            margin: 0 4px;
+                            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                            transition: all 0.2s ease;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            width: 36px;
+                            height: 36px;
+                          }
+                          .map-button:hover {
+                            background-color: #f0f0f0;
+                            box-shadow: 0 3px 7px rgba(0,0,0,0.3);
+                            transform: translateY(-1px);
+                          }
+                          .map-button:active {
+                            background-color: #e0e0e0;
+                            transform: translateY(1px);
+                            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                          }
+                          /* Position controls at top-right */
+                          .nav-buttons {
+                            display: flex;
+                            flex-direction: row;
+                            gap: 8px;
+                          }
+                          /* Enhanced pulse animation for office radius */
+                          @keyframes pulse {
+                            0% { opacity: 0.15; stroke-width: 3px; }
+                            50% { opacity: 0.25; stroke-width: 4px; }
+                            100% { opacity: 0.15; stroke-width: 3px; }
+                          }
+                          .pulse-animation {
+                            animation: pulse 2s infinite ease-in-out;
+                          }
+                          .google-maps-btn {
+                            padding: 10px 12px;
+                            background-color: white;
+                            border: 1px solid #ccc;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            margin-bottom: 8px;
+                            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                            font-weight: bold;
+                            font-family: Arial, sans-serif;
+                            font-size: 14px;
+                            color: #333;
+                            transition: all 0.2s ease;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            min-width: 120px;
+                          }
+                          .google-maps-btn:hover {
+                            background-color: #f0f0f0;
+                            box-shadow: 0 3px 7px rgba(0,0,0,0.3);
+                            transform: translateY(-1px);
+                          }
+                          .google-maps-btn:active {
+                            background-color: #e0e0e0;
+                            transform: translateY(1px);
+                            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                          }
+                          /* Improve marker and popup styles */
+                          .leaflet-popup-content-wrapper {
+                            border-radius: 8px;
+                            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+                          }
+                          .leaflet-popup-content {
+                            margin: 12px 16px;
+                            font-family: Arial, sans-serif;
+                          }
+                          /* Improve controls appearance */
+                          .leaflet-control-zoom {
+                            border-radius: 4px;
+                            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                          }
+                          .leaflet-touch .leaflet-control-layers, .leaflet-touch .leaflet-bar {
+                            border: none;
+                            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                          }
+                          /* Hide attribution control */
+                          .leaflet-control-attribution {
+                            display: none;
+                          }
+                        </style>
+                      </head>
+                      <body>
+                        <div id="map"></div>
+                        <script>
+                          // Initialize the map with smooth options
+                          var map = L.map('map', {
+                            // Enable smooth wheel zoom
+                            scrollWheelZoom: true,
+                            // Enable smooth panning
+                            inertia: true,
+                            inertiaDeceleration: 3000, // Higher value = smoother panning
+                            inertiaMaxSpeed: 3000,
+                            // Smooth zoom animation
+                            zoomAnimation: true,
+                            zoomAnimationThreshold: 4,
+                            fadeAnimation: true,
+                            // Improve touch behavior for mobile
+                            tap: true,
+                            tapTolerance: 15,
+                            touchZoom: true,
+                            bounceAtZoomLimits: false
+                          }).setView([${currentLocation.coords.latitude}, ${currentLocation.coords.longitude}], 16);
+                          
+                          // Add OpenStreetMap tile layer with better performance options
+                          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '', // Removed attribution text
+                            updateWhenIdle: true,
+                            updateWhenZooming: false,
+                            // Improve tile loading
+                            keepBuffer: 4,
+                            // Improve performance
+                            maxZoom: 19,
+                            minZoom: 2
+                          }).addTo(map);
+                          
+                          // Store locations for easy access
+                          var userLocation = [${currentLocation.coords.latitude}, ${currentLocation.coords.longitude}];
+                          var officeLocation = [${officeLocation.location.coordinates[1]}, ${officeLocation.location.coordinates[0]}];
+                          
+                          // Create custom icons for better visibility
+                          var userIcon = L.divIcon({
+                            className: 'custom-div-icon',
+                            html: '<div style="background-color:#4285F4; width:20px; height:20px; border-radius:50%; border:3px solid white; box-shadow:0 0 5px rgba(0,0,0,0.5);"></div>',
+                            iconSize: [26, 26],
+                            iconAnchor: [13, 13]
+                          });
+                          
+                          var officeIcon = L.divIcon({
+                            className: 'custom-div-icon',
+                            html: '<div style="background-color:#DB4437; width:20px; height:20px; border-radius:50%; border:3px solid white; box-shadow:0 0 5px rgba(0,0,0,0.5);"></div>',
+                            iconSize: [26, 26],
+                            iconAnchor: [13, 13]
+                          });
+                          
+                          // Add user marker with custom icon
+                          var userMarker = L.marker([${currentLocation.coords.latitude}, ${currentLocation.coords.longitude}], {
+                            title: 'Your Location',
+                            icon: userIcon,
+                            zIndexOffset: 1000 // Ensure user marker is on top
+                          }).addTo(map);
+                          userMarker.bindPopup('<strong>Your Location</strong>').openPopup();
+                          
+                          // Add office marker with custom icon
+                          var officeMarker = L.marker([${officeLocation.location.coordinates[1]}, ${officeLocation.location.coordinates[0]}], {
+                            title: '${officeLocation.name}',
+                            icon: officeIcon
+                          }).addTo(map);
+                          officeMarker.bindPopup('<strong>${officeLocation.name}</strong><br>${officeLocation.address}');
+                          
+                          // Add office radius circle with enhanced styling
+                          var circle = L.circle([${officeLocation.location.coordinates[1]}, ${officeLocation.location.coordinates[0]}], {
+                            color: '#DB4437',
+                            weight: 3,
+                            fillColor: '#DB4437',
+                            fillOpacity: 0.15,
+                            radius: ${officeLocation.radius},
+                            className: 'pulse-animation'
+                          }).addTo(map);
+                          
+                          // Add navigation buttons control in top-right position
+                          var navButtons = L.control({position: 'topright'});
+                          navButtons.onAdd = function(map) {
+                            var div = L.DomUtil.create('div', 'nav-buttons');
+                            
+                            // User location button with icon only
+                            var userButton = document.createElement('button');
+                            userButton.className = 'map-button';
+                            userButton.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;"><div style="background-color:#4285F4;width:16px;height:16px;border-radius:50%;border:2px solid white;"></div></div>';
+                            userButton.onclick = function() {
+                              // Use flyTo for smooth animation instead of setView
+                              map.flyTo(userLocation, 16, {
+                                duration: 1.5, // Animation duration in seconds
+                                easeLinearity: 0.25 // Makes animation smoother
+                              });
+                              window.ReactNativeWebView.postMessage(JSON.stringify({
+                                type: 'centerOnUser'
+                              }));
+                            };
+                            div.appendChild(userButton);
+                            
+                            // Office location button with icon only
+                            var officeButton = document.createElement('button');
+                            officeButton.className = 'map-button';
+                            officeButton.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;"><div style="background-color:#DB4437;width:16px;height:16px;border-radius:50%;border:2px solid white;"></div></div>';
+                            officeButton.onclick = function() {
+                              // Use flyTo for smooth animation instead of setView
+                              map.flyTo(officeLocation, 16, {
+                                duration: 1.5, // Animation duration in seconds
+                                easeLinearity: 0.25 // Makes animation smoother
+                              });
+                              window.ReactNativeWebView.postMessage(JSON.stringify({
+                                type: 'centerOnOffice'
+                              }));
+                            };
+                            div.appendChild(officeButton);
+                            
+                            return div;
+                          };
+                          navButtons.addTo(map);
+                          
+                          // Add button to open in Google Maps
+                          var googleMapsButton = L.control({position: 'bottomright'});
+                          googleMapsButton.onAdd = function(map) {
+                            var div = L.DomUtil.create('div', 'google-maps-button');
+                            div.innerHTML = '<button class="google-maps-btn">Open in Google Maps</button>';
+                            div.onclick = function() {
+                              window.ReactNativeWebView.postMessage(JSON.stringify({
+                                type: 'openGoogleMaps',
+                                userLat: ${currentLocation.coords.latitude},
+                                userLng: ${currentLocation.coords.longitude},
+                                officeLat: ${officeLocation.location.coordinates[1]},
+                                officeLng: ${officeLocation.location.coordinates[0]}
+                              }));
+                            };
+                            return div;
+                          };
+                          googleMapsButton.addTo(map);
+                        </script>
+                      </body>
+                    </html>
+                  `
                 }}
-                provider="google"
-                showsUserLocation={true}
-                showsMyLocationButton={true}
-                loadingEnabled={true}
-                loadingIndicatorColor="#0000ff"
-                loadingBackgroundColor="#e0e0e0"
-              >
-              {/* Office Location */}
-              <Marker
-                coordinate={{
-                  latitude: officeLocation.location.coordinates[1],
-                  longitude: officeLocation.location.coordinates[0],
+                onMessage={(event) => {
+                  try {
+                    const data = JSON.parse(event.nativeEvent.data);
+                    if (data.type === 'openGoogleMaps') {
+                      const { userLat, userLng, officeLat, officeLng } = data;
+                      const url = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLng}&destination=${officeLat},${officeLng}`;
+                      Linking.openURL(url);
+                    } else if (data.type === 'centerOnUser') {
+                      console.log('Centering map on user location');
+                      // Additional actions if needed when user centers on their location
+                    } else if (data.type === 'centerOnOffice') {
+                      console.log('Centering map on office location');
+                      // Additional actions if needed when user centers on office location
+                    }
+                  } catch (error) {
+                    console.error('Error parsing WebView message:', error);
+                  }
                 }}
-                pinColor="red"
-                title={officeLocation.name}
-                description={officeLocation.address}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+                startInLoadingState={true}
               />
 
-              {/* Office Range Circle */}
-              <Circle
-                center={{
-                  latitude: officeLocation.location.coordinates[1],
-                  longitude: officeLocation.location.coordinates[0],
-                }}
-                radius={officeLocation.radius}
-                fillColor="rgba(255, 0, 0, 0.1)"
-                strokeColor="rgba(255, 0, 0, 0.3)"
-                strokeWidth={1}
-              />
-
-              {/* User Accuracy Circle */}
-              {/* {currentLocation.coords.accuracy && (
-                <Circle
-                  center={{
-                    latitude: currentLocation.coords.latitude,
-                    longitude: currentLocation.coords.longitude,
-                  }}
-                  radius={currentLocation.coords.accuracy}
-                  fillColor="rgba(0, 0, 255, 0.1)"
-                  strokeColor="rgba(0, 0, 255, 0.3)"
-                  strokeWidth={1}
-                />
-              )} */}
-            </MapView>
-            {/* Button to navigate to office location */}
-            <TouchableOpacity 
-              style={styles.officeLocationButton}
-              onPress={() => {
-                if (officeLocation) {
-                  // Navigate to office location
-                  mapRef.current?.animateToRegion({
-                    latitude: officeLocation.location.coordinates[1],
-                    longitude: officeLocation.location.coordinates[0],
-                    latitudeDelta: 0.005,
-                    longitudeDelta: 0.005,
-                  }, 1000);
-                }
-              }}
-            >
-              <MaterialIcons name="location-on" size={24} color="#c62828" />
-            </TouchableOpacity>
+            {/* Button to navigate to office location - Removed as it's now handled in the WebView */}
             </View>
           ) : (
             <View style={[styles.map, styles.mapPlaceholder]}>
@@ -1089,6 +1318,7 @@ export default function TimeTracking() {
                 <Text style={[styles.tableHeaderCell, styles.hoursCell]}>Hours</Text>
                 <Text style={[styles.tableHeaderCell, styles.undertimeCell]}>Undertime</Text>
                 <Text style={[styles.tableHeaderCell, styles.makeupCell]}>Makeup</Text>
+                <Text style={[styles.tableHeaderCell, styles.makeupDateCell]}>Makeup Date</Text>
               </View>
               {loading && timeRecords.length === 0 ? (
                 <ActivityIndicator size="large" color="#0000ff" style={styles.loadingIndicator} />
@@ -1118,7 +1348,9 @@ export default function TimeTracking() {
                     </Text>
                     <Text style={[styles.tableCell, styles.makeupCell]}>
                       {record.makeup ? record.makeup.toFixed(2) : '0.00'}
-                      {record.makeupDate ? `\n(${formatRecordDate(record.makeupDate)})` : ''}
+                    </Text>
+                    <Text style={[styles.tableCell, styles.makeupDateCell]}>
+                      {record.makeupDate ? formatRecordDate(record.makeupDate) : '--'}
                     </Text>
                   </View>
                 ))
@@ -1637,6 +1869,9 @@ const styles = StyleSheet.create({
     width: 80,
   },
   makeupCell: {
+    width: 80,
+  },
+  makeupDateCell: {
     width: 100,
   },
   actionCell: {
